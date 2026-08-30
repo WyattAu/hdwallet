@@ -1,0 +1,25 @@
+[package]
+name = "hdwallet"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "HD wallet for Rust — BIP32/39/44 derivation with multi-chain address generation (BTC, ETH, SOL, TRON, Liquid)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/WyattAu/hdwallet"
+keywords = ["hdwallet", "bip32", "bip39", "bitcoin", "ethereum"]
+categories = ["cryptography", "wallet"]
+
+[dependencies]
+bip32 = "0.5"
+bip39 = "1"
+ed25519-dalek = "2"
+sha2 = "0.10"
+hmac = "0.12"
+thiserror = "2"
+zeroize = "1"
+getrandom = "0.2"
+bs58 = "0.5"
+hex = "0.4"
+tiny-keccak = { version = "2", features = ["keccak"] }
+
+[dev-dependencies]
