@@ -1,4 +1,4 @@
-# hdwallet
+# multi-chain-wallet
 
 HD wallet for Rust — BIP32/39/44 derivation with multi-chain address generation (BTC, ETH, SOL, TRON, Liquid).
 
