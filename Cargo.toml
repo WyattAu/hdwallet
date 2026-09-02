@@ -7,7 +7,8 @@ description = "HD wallet for Rust — BIP32/39/44 derivation with multi-chain ad
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/WyattAu/hdwallet"
 keywords = ["hdwallet", "bip32", "bip39", "bitcoin", "ethereum"]
-categories = ["cryptography", "wallet"]
+categories = ["cryptography"]
+exclude = ["/target"]
 
 [dependencies]
 bip32 = { version = "0.5", features = ["bip39"] }
@@ -24,3 +25,4 @@ hmac = "0.12"
 hex = "0.4"
 
 [dev-dependencies]
+proptest = "1"

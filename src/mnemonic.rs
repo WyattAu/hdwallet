@@ -6,6 +6,7 @@ use crate::error::WalletError;
 /// Configuration for mnemonic generation.
 #[derive(Debug, Clone)]
 pub struct MnemonicConfig {
+    /// Number of words in the mnemonic (12, 15, 18, 21, or 24).
     pub word_count: u8,
 }
 

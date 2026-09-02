@@ -1,34 +1,52 @@
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 //! Multi-chain HD wallet — BIP32/39/44 derivation with BTC, ETH, SOL, TRON address generation.
 
+/// Bitcoin address derivation.
 pub mod btc;
+/// BIP44 derivation path support.
 pub mod derivation;
+/// Error types.
 pub mod error;
+/// Ethereum address derivation.
 pub mod eth;
+/// BIP39 mnemonic support.
 pub mod mnemonic;
+/// Solana address derivation.
 pub mod sol;
+/// Tron address derivation.
 pub mod tron;
 
 pub use error::WalletError;
 pub use mnemonic::{generate_mnemonic, MnemonicConfig};
 pub use derivation::DerivationPath;
 
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 /// Supported cryptocurrencies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Coin {
+    /// Bitcoin (BTC).
     Bitcoin,
+    /// Ethereum (ETH).
     Ethereum,
+    /// Solana (SOL).
     Solana,
+    /// Tron (TRX).
     Tron,
 }
 
 /// BIP-44 coin types (SLIP-44).
 pub const BTC_COIN_TYPE: u32 = 0;
+/// BIP-44 coin types (SLIP-44).
 pub const ETH_COIN_TYPE: u32 = 60;
+/// BIP-44 coin types (SLIP-44).
 pub const SOL_COIN_TYPE: u32 = 501;
+/// BIP-44 coin types (SLIP-44).
 pub const TRON_COIN_TYPE: u32 = 195;
 
 /// HD wallet supporting BIP32/39/44 multi-chain derivation.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct HdWallet {
     seed: [u8; 64],
 }
