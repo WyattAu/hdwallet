@@ -3,6 +3,7 @@ use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
 use crate::error::WalletError;
+use crate::signing::Secp256k1Signature;
 
 /// Bech32 character set (BIP-173).
 const BECH32_CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -84,16 +85,25 @@ fn pubkey_to_bech32(pubkey_bytes: &[u8], hrp: &str) -> Result<String, WalletErro
     bech32_encode(hrp, &hash160, 0)
 }
 
+fn derive_btc_xprv(seed: &[u8; 64], account: u32, index: u32) -> Result<XPrv, WalletError> {
+    let path_str = format!("m/84'/0'/{account}'/0/{index}");
+    let path = path_str
+        .parse::<bip32::DerivationPath>()
+        .map_err(|e| WalletError::DerivationFailed(e.to_string()))?;
+    let seed_obj = bip32::Seed::new(*seed);
+    XPrv::derive_from_path(&seed_obj, &path)
+        .map_err(|e| WalletError::DerivationFailed(e.to_string()))
+}
+
 /// Derive a P2WPKH (bech32 segwit v0) Bitcoin address from the seed.
 ///
 /// Derivation path: m/84'/0'/account'/0/index
-pub fn derive_btc_address(seed: &[u8; 64], account: u32, index: u32) -> Result<String, WalletError> {
-    let path_str = format!("m/84'/0'/{account}'/0/{index}");
-    let path = path_str.parse::<bip32::DerivationPath>()
-        .map_err(|e| WalletError::DerivationFailed(e.to_string()))?;
-    let seed_obj = bip32::Seed::new(*seed);
-    let xprv = XPrv::derive_from_path(&seed_obj, &path)
-        .map_err(|e| WalletError::DerivationFailed(e.to_string()))?;
+pub fn derive_btc_address(
+    seed: &[u8; 64],
+    account: u32,
+    index: u32,
+) -> Result<String, WalletError> {
+    let xprv = derive_btc_xprv(seed, account, index)?;
 
     let xpub = xprv.public_key();
     let verifying_key = xpub.public_key();
@@ -104,6 +114,43 @@ pub fn derive_btc_address(seed: &[u8; 64], account: u32, index: u32) -> Result<S
 /// Derive a P2WPKH Bitcoin address for account 0, index 0.
 pub fn derive_address(seed: &[u8; 64]) -> Result<String, WalletError> {
     derive_btc_address(seed, 0, 0)
+}
+
+/// Derive a secp256k1 signing key from the seed for BTC.
+pub fn derive_btc_signing_key(
+    seed: &[u8; 64],
+    account: u32,
+    index: u32,
+) -> Result<k256::ecdsa::SigningKey, WalletError> {
+    let xprv = derive_btc_xprv(seed, account, index)?;
+    let secret_bytes = xprv.private_key().to_bytes();
+    k256::ecdsa::SigningKey::from_slice(&secret_bytes)
+        .map_err(|e| WalletError::SigningFailed(e.to_string()))
+}
+
+/// Sign a 32-byte message hash with the BTC signing key.
+pub fn sign_btc(
+    seed: &[u8; 64],
+    account: u32,
+    index: u32,
+    msg_hash: &[u8; 32],
+) -> Result<Secp256k1Signature, WalletError> {
+    let signing_key = derive_btc_signing_key(seed, account, index)?;
+    let (signature, recid) = signing_key
+        .sign_prehash_recoverable(msg_hash)
+        .map_err(|e| WalletError::SigningFailed(e.to_string()))?;
+
+    let sig_bytes = signature.to_bytes();
+    let mut r = [0u8; 32];
+    let mut s = [0u8; 32];
+    r.copy_from_slice(&sig_bytes[..32]);
+    s.copy_from_slice(&sig_bytes[32..64]);
+
+    Ok(Secp256k1Signature {
+        r,
+        s,
+        v: recid.to_byte(),
+    })
 }
 
 #[cfg(test)]
@@ -119,5 +166,36 @@ mod tests {
         dbg!(&result);
         assert!(result.starts_with("bc1q"));
         assert_eq!(result.len(), 42);
+    }
+
+    #[test]
+    fn btc_signing_key_derivation() {
+        let phrase = crate::HdWallet::generate(24).unwrap();
+        let wallet = crate::HdWallet::from_mnemonic(&phrase, "").unwrap();
+        let signing_key = derive_btc_signing_key(wallet.seed(), 0, 0).unwrap();
+        let verifying_key = signing_key.verifying_key();
+        assert!(!verifying_key.to_encoded_point(false).as_bytes().is_empty());
+    }
+
+    #[test]
+    fn btc_sign_and_verify() {
+        let phrase = crate::HdWallet::generate(24).unwrap();
+        let wallet = crate::HdWallet::from_mnemonic(&phrase, "").unwrap();
+        let msg_hash = Sha256::digest(b"test message").into();
+
+        let sig = sign_btc(wallet.seed(), 0, 0, &msg_hash).unwrap();
+
+        // Verify signature is valid
+        use k256::ecdsa::{VerifyingKey, signature::hazmat::PrehashVerifier};
+        let signing_key = derive_btc_signing_key(wallet.seed(), 0, 0).unwrap();
+        let verifying_key = VerifyingKey::from(&signing_key);
+
+        let mut sig_bytes = [0u8; 64];
+        sig_bytes[..32].copy_from_slice(&sig.r);
+        sig_bytes[32..].copy_from_slice(&sig.s);
+        let signature = k256::ecdsa::Signature::from_slice(&sig_bytes).unwrap();
+        verifying_key
+            .verify_prehash(&msg_hash, &signature)
+            .expect("signature should be valid");
     }
 }

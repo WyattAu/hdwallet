@@ -22,4 +22,12 @@ pub enum WalletError {
     /// Cryptographic error.
     #[error("crypto error: {0}")]
     CryptoError(String),
+
+    /// Signing operation failed.
+    #[error("signing failed: {0}")]
+    SigningFailed(String),
+
+    /// Serialization failed.
+    #[error("serialization failed: {0}")]
+    SerializationFailed(String),
 }

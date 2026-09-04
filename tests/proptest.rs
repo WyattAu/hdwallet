@@ -35,8 +35,14 @@ fn deterministic_derivation_from_mnemonic() {
     let wallet1 = HdWallet::from_mnemonic(&phrase, "").unwrap();
     let wallet2 = HdWallet::from_mnemonic(&phrase, "").unwrap();
 
-    assert_eq!(wallet1.derive_address(Coin::Bitcoin).unwrap(), wallet2.derive_address(Coin::Bitcoin).unwrap());
-    assert_eq!(wallet1.derive_address(Coin::Ethereum).unwrap(), wallet2.derive_address(Coin::Ethereum).unwrap());
+    assert_eq!(
+        wallet1.derive_address(Coin::Bitcoin).unwrap(),
+        wallet2.derive_address(Coin::Bitcoin).unwrap()
+    );
+    assert_eq!(
+        wallet1.derive_address(Coin::Ethereum).unwrap(),
+        wallet2.derive_address(Coin::Ethereum).unwrap()
+    );
 }
 
 #[test]
