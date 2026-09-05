@@ -405,7 +405,7 @@ dependencies = [
  "hmac",
  "k256",
  "proptest",
- "rand_core 0.6.4",
+ "rand_core 0.9.5",
  "ripemd",
  "rlp",
  "sha2",
