@@ -11,7 +11,8 @@ fn double_sha256(data: &[u8]) -> [u8; 4] {
     let first = Sha256::digest(data);
     let second = Sha256::digest(first);
     let mut checksum = [0u8; 4];
-    checksum.copy_from_slice(&second[..4]);
+    let (prefix, _) = second.split_at(4);
+    checksum.copy_from_slice(prefix);
     checksum
 }
 
@@ -42,13 +43,17 @@ pub fn derive_tron_address(
     let uncompressed = verifying_key.to_encoded_point(false);
     let pubkey_bytes = uncompressed.as_bytes();
 
+    let (_, coords) = pubkey_bytes
+        .split_first()
+        .ok_or_else(|| WalletError::EncodingFailed("empty public key".to_string()))?;
     let mut keccak = Keccak256::new();
-    keccak.update(&pubkey_bytes[1..]);
+    keccak.update(coords);
     let hash = keccak.finalize();
 
+    let (_, addr) = hash.split_at(12);
     let mut payload = Vec::with_capacity(21);
     payload.push(TRON_VERSION_BYTE);
-    payload.extend_from_slice(&hash[12..32]);
+    payload.extend_from_slice(addr);
 
     let checksum = double_sha256(&payload);
     payload.extend_from_slice(&checksum);
@@ -88,8 +93,9 @@ pub fn sign_tron(
     let sig_bytes = signature.to_bytes();
     let mut r = [0u8; 32];
     let mut s = [0u8; 32];
-    r.copy_from_slice(&sig_bytes[..32]);
-    s.copy_from_slice(&sig_bytes[32..64]);
+    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
+    r.copy_from_slice(r_bytes);
+    s.copy_from_slice(s_bytes);
 
     Ok(Secp256k1Signature {
         r,
@@ -101,6 +107,10 @@ pub fn sign_tron(
 /// Construct and sign a TRON transaction.
 ///
 /// Returns the signed transaction bytes (SHA-256 hash of the tx signed).
+// The parameter list intentionally mirrors the on-chain transaction field
+// order; grouping them into a struct would decouple the signature from
+// the serialization it drives.
+#[allow(clippy::too_many_arguments)]
 pub fn sign_tron_transaction(
     seed: &[u8; 64],
     account: u32,
@@ -135,8 +145,9 @@ pub fn sign_tron_transaction(
     let sig_bytes = signature.to_bytes();
     let mut r = [0u8; 32];
     let mut s = [0u8; 32];
-    r.copy_from_slice(&sig_bytes[..32]);
-    s.copy_from_slice(&sig_bytes[32..64]);
+    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
+    r.copy_from_slice(r_bytes);
+    s.copy_from_slice(s_bytes);
 
     // Return: tx_hash + r + s + v
     let mut result = Vec::with_capacity(32 + 32 + 32 + 1);
@@ -147,6 +158,15 @@ pub fn sign_tron_transaction(
     Ok(result)
 }
 
+// Tests exercise failure paths and invariants directly; unwrap/expect,
+// slicing, and panicking asserts are acceptable here — violations
+// surface as test failures, not production panics.
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 #[cfg(test)]
 mod tests {
     use super::*;

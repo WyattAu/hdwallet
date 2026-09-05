@@ -30,7 +30,7 @@ impl MnemonicConfig {
 /// **Note:** The underlying `bip32` crate currently only supports 24-word mnemonics.
 pub fn generate_mnemonic(word_count: u8) -> Result<String, WalletError> {
     let _config = MnemonicConfig::new(word_count)?;
-    let mnemonic = Mnemonic::random(&mut OsRng, Language::English);
+    let mnemonic = Mnemonic::random(OsRng, Language::English);
     Ok(mnemonic.phrase().to_string())
 }
 
@@ -47,6 +47,15 @@ pub fn mnemonic_to_seed(mnemonic: &str, passphrase: &str) -> Result<[u8; 64], Wa
     Ok(result)
 }
 
+// Tests exercise failure paths and invariants directly; unwrap/expect,
+// slicing, and panicking asserts are acceptable here — violations
+// surface as test failures, not production panics.
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 #[cfg(test)]
 mod tests {
     use super::*;

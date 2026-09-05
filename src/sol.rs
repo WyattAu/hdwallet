@@ -17,8 +17,9 @@ fn slip10_master_key(seed: &[u8]) -> Result<([u8; 32], [u8; 32]), WalletError> {
 
     let mut key = [0u8; 32];
     let mut chain_code = [0u8; 32];
-    key.copy_from_slice(&result[..32]);
-    chain_code.copy_from_slice(&result[32..]);
+    let (key_bytes, chain_bytes) = result.split_at(32);
+    key.copy_from_slice(key_bytes);
+    chain_code.copy_from_slice(chain_bytes);
     Ok((key, chain_code))
 }
 
@@ -40,8 +41,9 @@ fn slip10_derive_child(
 
     let mut child_key = [0u8; 32];
     let mut child_chain_code = [0u8; 32];
-    child_key.copy_from_slice(&result[..32]);
-    child_chain_code.copy_from_slice(&result[32..]);
+    let (key_bytes, chain_bytes) = result.split_at(32);
+    child_key.copy_from_slice(key_bytes);
+    child_chain_code.copy_from_slice(chain_bytes);
     Ok((child_key, child_chain_code))
 }
 
@@ -156,6 +158,15 @@ pub fn sign_sol_transaction(
     Ok(result)
 }
 
+// Tests exercise failure paths and invariants directly; unwrap/expect,
+// slicing, and panicking asserts are acceptable here — violations
+// surface as test failures, not production panics.
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 #[cfg(test)]
 mod tests {
     use super::*;

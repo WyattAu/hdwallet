@@ -16,9 +16,9 @@ fn bech32_polymod(values: &[u32]) -> u32 {
     for &v in values {
         let b = (chk >> 25) as u8;
         chk = (chk & 0x1ffffff) << 5 ^ v;
-        for i in 0..5 {
+        for (i, &generator) in GEN.iter().enumerate() {
             if (b >> i) & 1 == 1 {
-                chk ^= GEN[i];
+                chk ^= generator;
             }
         }
     }
@@ -44,7 +44,7 @@ fn bech32_create_checksum(hrp: &[u8], data: &[u32]) -> Vec<u32> {
     let poly = bech32_polymod(&values);
     let mut checksum = Vec::with_capacity(6);
     for i in 0..6 {
-        checksum.push((poly >> 5 * (5 - i)) & 0x1f);
+        checksum.push((poly >> (5 * (5 - i))) & 0x1f);
     }
     checksum
 }
@@ -143,8 +143,9 @@ pub fn sign_btc(
     let sig_bytes = signature.to_bytes();
     let mut r = [0u8; 32];
     let mut s = [0u8; 32];
-    r.copy_from_slice(&sig_bytes[..32]);
-    s.copy_from_slice(&sig_bytes[32..64]);
+    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
+    r.copy_from_slice(r_bytes);
+    s.copy_from_slice(s_bytes);
 
     Ok(Secp256k1Signature {
         r,
@@ -153,6 +154,15 @@ pub fn sign_btc(
     })
 }
 
+// Tests exercise failure paths and invariants directly; unwrap/expect,
+// slicing, and panicking asserts are acceptable here — violations
+// surface as test failures, not production panics.
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 #[cfg(test)]
 mod tests {
     use super::*;

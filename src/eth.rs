@@ -34,12 +34,15 @@ pub fn derive_eth_address(
     let pubkey_bytes = uncompressed.as_bytes();
 
     // Skip 0x04 prefix, hash the 64 coordinate bytes
+    let (_, coords) = pubkey_bytes
+        .split_first()
+        .ok_or_else(|| WalletError::EncodingFailed("empty public key".to_string()))?;
     let mut keccak = Keccak256::new();
-    keccak.update(&pubkey_bytes[1..]);
+    keccak.update(coords);
     let hash = keccak.finalize();
 
     // Last 20 bytes = address
-    let addr = &hash[12..32];
+    let (_, addr) = hash.split_at(12);
     Ok(eip55_checksum(addr))
 }
 
@@ -58,21 +61,19 @@ fn eip55_checksum(addr: &[u8]) -> String {
     let hash = keccak.finalize();
 
     // hash is 32 bytes, hex_str is 40 chars
-    // Use the hex-encoded hash so we can index by character position
-    let hash_hex = hex::encode(&hash);
+    // Use the hex-encoded hash so we can pair each hex char with the
+    // corresponding hash nibble.
+    let hash_hex = hex::encode(hash);
 
     let checksummed: String = hex_str
         .chars()
-        .enumerate()
-        .map(|(i, c)| {
-            let hash_byte = hash_hex.as_bytes()[i];
+        .zip(hash_hex.bytes())
+        .map(|(c, hash_byte)| {
             if c.is_ascii_hexdigit() {
-                let digit = c.to_digit(16).unwrap() as u8;
                 // Uppercase if the corresponding hash nibble >= 8
-                if hash_byte >= b'8' && digit >= 8 {
-                    c.to_ascii_uppercase()
-                } else {
-                    c.to_ascii_lowercase()
+                match c.to_digit(16) {
+                    Some(digit) if hash_byte >= b'8' && digit >= 8 => c.to_ascii_uppercase(),
+                    _ => c.to_ascii_lowercase(),
                 }
             } else {
                 c
@@ -110,8 +111,9 @@ pub fn sign_eth(
     let sig_bytes = signature.to_bytes();
     let mut r = [0u8; 32];
     let mut s = [0u8; 32];
-    r.copy_from_slice(&sig_bytes[..32]);
-    s.copy_from_slice(&sig_bytes[32..64]);
+    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
+    r.copy_from_slice(r_bytes);
+    s.copy_from_slice(s_bytes);
 
     // Ethereum v = recovery_id + 27
     Ok(Secp256k1Signature {
@@ -124,6 +126,10 @@ pub fn sign_eth(
 /// Construct, RLP-encode, and sign an EIP-1559 Ethereum transaction.
 ///
 /// Returns the signed raw transaction bytes (ready for broadcast).
+// The parameter list intentionally mirrors the EIP-1559 RLP field order;
+// grouping them into a struct would decouple the signature from the
+// encoding it drives.
+#[allow(clippy::too_many_arguments)]
 pub fn sign_eth_transaction(
     seed: &[u8; 64],
     account: u32,
@@ -171,8 +177,9 @@ pub fn sign_eth_transaction(
     let sig_bytes = signature.to_bytes();
     let mut r = [0u8; 32];
     let mut s = [0u8; 32];
-    r.copy_from_slice(&sig_bytes[..32]);
-    s.copy_from_slice(&sig_bytes[32..64]);
+    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
+    r.copy_from_slice(r_bytes);
+    s.copy_from_slice(s_bytes);
 
     // v = chain_id * 2 + 35 + recovery_id
     let v = chain_id * 2 + 35 + recid.to_byte() as u64;
@@ -197,6 +204,15 @@ pub fn sign_eth_transaction(
     Ok(signed_tx)
 }
 
+// Tests exercise failure paths and invariants directly; unwrap/expect,
+// slicing, and panicking asserts are acceptable here — violations
+// surface as test failures, not production panics.
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,5 +1,14 @@
 //! Property-based tests for multi-chain-wallet crate.
 
+// Property tests exercise malformed inputs directly; unwrap/expect, slicing,
+// and panicking asserts are the test signal here.
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
+
 use proptest::prelude::*;
 
 use multi_chain_wallet::{Coin, HdWallet};
@@ -12,8 +21,7 @@ fn generate_mnemonic_always_24_words() {
     proptest!(|(word_count in 12u8..=24u8)| {
         // generate_mnemonic always produces 24 words (bip32 limitation)
         let result = HdWallet::generate(word_count);
-        if result.is_ok() {
-            let phrase = result.unwrap();
+        if let Ok(phrase) = result {
             let words: Vec<&str> = phrase.split_whitespace().collect();
             prop_assert_eq!(words.len(), VALID_WORD_COUNT as usize);
         }

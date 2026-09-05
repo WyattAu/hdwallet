@@ -2,7 +2,6 @@
 ///
 /// Chain modules build paths manually as strings and parse with `bip32::DerivationPath`.
 /// This module provides constants used across the crate.
-
 /// BIP-44 purpose constant.
 pub const PURPOSE: u32 = 44;
 
