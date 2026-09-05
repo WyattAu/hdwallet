@@ -19,6 +19,12 @@ pub struct Ed25519Signature {
 }
 
 /// A derived private key containing optional keys for different curves.
+///
+/// Key material is zeroized on drop (`ZeroizeOnDrop`); the type implements
+/// neither `Debug` nor `Display`.
+///
+/// # Requirements
+/// REQ-HD-104, REQ-HD-105
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct DerivedPrivateKey {
     /// secp256k1 private key (for BTC, ETH, TRON).

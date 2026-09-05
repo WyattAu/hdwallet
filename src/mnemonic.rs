@@ -38,6 +38,9 @@ pub fn generate_mnemonic(word_count: u8) -> Result<String, WalletError> {
 ///
 /// Uses an optional passphrase (empty string by default).
 /// **Note:** The `bip32` crate currently only supports 24-word mnemonics.
+///
+/// # Requirements
+/// REQ-HD-002, REQ-HD-004
 pub fn mnemonic_to_seed(mnemonic: &str, passphrase: &str) -> Result<[u8; 64], WalletError> {
     let mnemonic = Mnemonic::new(mnemonic, Language::English)
         .map_err(|e| WalletError::InvalidMnemonic(e.to_string()))?;
