@@ -70,6 +70,6 @@ comments on the implementing public item carry `REQ-HD-NNN` tags.
 
 ## Test Count Delta
 
-- Before: 27 tests (19 unit incl. mnemonic + 8 in `tests/proptest.rs` incl. 2 proptests).
+- Before: 37 tests (13 lib + 4 mnemonic + 20 chain-module unit tests, 8 in `tests/proptest.rs` incl. 2 proptests).
 - Added: 5 (`canonical_bip39_44_test_vector`, `secp256k1_signature_verifies`, `sign_message_hashes_non_32_byte_input`, `wallet_types_are_zeroize_on_drop`, `derivation_survives_extreme_indices`).
-- After: 32.
+- After: 42 (34 lib + 8 in `tests/proptest.rs`).
