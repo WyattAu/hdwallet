@@ -184,7 +184,7 @@ pub fn sign_eth_transaction(
     // v = chain_id * 2 + 35 + recovery_id
     let v = chain_id * 2 + 35 + recid.to_byte() as u64;
 
-    // RLP encode the signed tx: [chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas, gas_limit, to, value, data, v, r, s]
+    // RLP encode the signed tx: [chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas, gas_limit, to, value, data, access_list, v, r, s]
     let mut signed_stream = RlpStream::new();
     signed_stream.begin_list(12);
     signed_stream.append(&chain_id);
@@ -195,6 +195,7 @@ pub fn sign_eth_transaction(
     signed_stream.append(&to.as_slice());
     signed_stream.append(&value.as_slice());
     signed_stream.append(&data);
+    signed_stream.begin_list(0); // empty access list — required: 12 fields, not 11
     signed_stream.append(&v);
     signed_stream.append(&r.as_slice());
     signed_stream.append(&s.as_slice());
