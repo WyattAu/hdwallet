@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, allow(unused_attributes))]
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 //! Multi-chain HD wallet — BIP32/39/44 derivation with BTC, ETH, SOL, TRON address generation.

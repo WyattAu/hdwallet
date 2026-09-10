@@ -1,5 +1,9 @@
 # multi-chain-wallet
 
+[![docs.rs](https://docs.rs/multi-chain-wallet/badge.svg)](https://docs.rs/multi-chain-wallet)
+[![crates.io](https://img.shields.io/crates/v/multi-chain-wallet.svg)](https://crates.io/crates/multi-chain-wallet)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
+
 HD wallet for Rust — BIP32/39/44 derivation with multi-chain address generation (BTC, ETH, SOL, TRON).
 
 ## Features
