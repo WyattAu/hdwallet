@@ -180,6 +180,30 @@ mod tests {
     }
 
     #[test]
+    fn double_sha256_known_vector() {
+        // sha256(sha256("hello")) truncated to 4 bytes.
+        assert_eq!(double_sha256(b"hello"), [0x95, 0x95, 0xc9, 0xdf]);
+    }
+
+    #[test]
+    fn tron_address_structure_and_checksum() {
+        let seed = [0x66u8; 64];
+        let addr = derive_tron_address(&seed, 0, 0).unwrap();
+        let other = derive_tron_address(&[0x67u8; 64], 0, 0).unwrap();
+        assert_ne!(addr, other);
+
+        // Base58Check: 0x41 version byte + 20-byte keccak tail + 4-byte
+        // double-SHA-256 checksum, verified here independently of
+        // `double_sha256` via direct sha2 calls.
+        let raw = bs58::decode(&addr).into_vec().unwrap();
+        assert_eq!(raw.len(), 25);
+        assert_eq!(raw[0], TRON_VERSION_BYTE);
+        let h1 = Sha256::digest(&raw[..21]);
+        let h2 = Sha256::digest(h1);
+        assert_eq!(&raw[21..], &h2[..4]);
+    }
+
+    #[test]
     fn tron_signing_key_derivation() {
         let phrase = crate::HdWallet::generate(24).unwrap();
         let wallet = crate::HdWallet::from_mnemonic(&phrase, "").unwrap();

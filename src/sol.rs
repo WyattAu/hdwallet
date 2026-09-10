@@ -181,6 +181,74 @@ mod tests {
     }
 
     #[test]
+    fn slip10_master_key_matches_slip0010_vector() {
+        // SLIP-0010 (ed25519) test vector 1: seed 000102030405060708090a0b0c0d0e0f.
+        let seed: &[u8] = &[
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+            0x0e, 0x0f,
+        ];
+        let (key, chain_code) = slip10_master_key(seed).unwrap();
+        assert_eq!(
+            key,
+            [
+                0x2b, 0x4b, 0xe7, 0xf1, 0x9e, 0xe2, 0x7b, 0xbf, 0x30, 0xc6, 0x67, 0xb6, 0x42,
+                0xd5, 0xf4, 0xaa, 0x69, 0xfd, 0x16, 0x98, 0x72, 0xf8, 0xfc, 0x30, 0x59, 0xc0,
+                0x8e, 0xba, 0xe2, 0xeb, 0x19, 0xe7,
+            ]
+        );
+        assert_eq!(
+            chain_code,
+            [
+                0x90, 0x04, 0x6a, 0x93, 0xde, 0x53, 0x80, 0xa7, 0x2b, 0x5e, 0x45, 0x01, 0x07,
+                0x48, 0x56, 0x7d, 0x5e, 0xa0, 0x2b, 0xbf, 0x65, 0x22, 0xf9, 0x79, 0xe0, 0x5c,
+                0x0d, 0x8d, 0x8c, 0xa9, 0xff, 0xfb,
+            ]
+        );
+    }
+
+    #[test]
+    fn slip10_child_keys_vary_by_index_and_preserve_hardening() {
+        let seed = [0x11u8; 64];
+        let (key, chain) = slip10_master_key(&seed).unwrap();
+
+        let c0 = slip10_derive_child(&key, &chain, 0).unwrap();
+        let c1 = slip10_derive_child(&key, &chain, 1).unwrap();
+        // Distinct non-hardened indices must yield distinct children.
+        assert_ne!(c0.0, c1.0);
+        assert_ne!(c0.1, c1.1);
+        // The hardened bit is OR-ed in: passing it explicitly is a no-op.
+        let hardened = slip10_derive_child(&key, &chain, HARDENED).unwrap();
+        assert_eq!(hardened, c0);
+    }
+
+    #[test]
+    fn derive_sol_secret_key_is_seed_and_index_sensitive() {
+        let s1 = [0x22u8; 64];
+        let s2 = [0x33u8; 64];
+        let a = derive_sol_secret_key(&s1, 0, 0).unwrap();
+        let b = derive_sol_secret_key(&s1, 0, 1).unwrap();
+        let c = derive_sol_secret_key(&s2, 0, 0).unwrap();
+        assert_ne!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn derive_sol_address_is_base58_of_derived_pubkey() {
+        let seed = [0x44u8; 64];
+        let addr = derive_sol_address(&seed, 0, 0).unwrap();
+        let other = derive_sol_address(&[0x45u8; 64], 0, 0).unwrap();
+        assert_ne!(addr, other);
+
+        let raw = bs58::decode(&addr).into_vec().unwrap();
+        assert_eq!(raw.len(), 32);
+        let signing_key = derive_sol_signing_key(&seed, 0, 0).unwrap();
+        assert_eq!(
+            bs58::encode(signing_key.verifying_key().as_bytes()).into_string(),
+            addr
+        );
+    }
+
+    #[test]
     fn sol_signing_key_derivation() {
         let phrase = crate::HdWallet::generate(24).unwrap();
         let wallet = crate::HdWallet::from_mnemonic(&phrase, "").unwrap();

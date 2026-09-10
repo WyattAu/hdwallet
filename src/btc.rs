@@ -41,7 +41,8 @@ fn bech32_create_checksum(hrp: &[u8], data: &[u32]) -> Vec<u32> {
     let mut values = bech32_hrp_expand(hrp);
     values.extend_from_slice(data);
     values.extend_from_slice(&[0; 6]);
-    let poly = bech32_polymod(&values);
+    // BIP-173: the codeword must polymod to the checksum constant 1.
+    let poly = bech32_polymod(&values) ^ 1;
     let mut checksum = Vec::with_capacity(6);
     for i in 0..6 {
         checksum.push((poly >> (5 * (5 - i))) & 0x1f);
@@ -173,9 +174,22 @@ mod tests {
         let hrp = "bc";
         let data = [0x00; 20];
         let result = bech32_encode(hrp, &data, 0).unwrap();
-        dbg!(&result);
         assert!(result.starts_with("bc1q"));
         assert_eq!(result.len(), 42);
+    }
+
+    #[test]
+    fn bech32_encode_matches_bip173_vector() {
+        // BIP-173 segwit test vector: witness v0 P2WPKH program
+        // 751e76e8199196d454941c45d1b3a323f1433bd6 under HRP "bc".
+        let program = [
+            0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94, 0x1c, 0x45, 0xd1, 0xb3,
+            0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6,
+        ];
+        assert_eq!(
+            bech32_encode("bc", &program, 0).unwrap(),
+            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+        );
     }
 
     #[test]
