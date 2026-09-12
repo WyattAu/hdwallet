@@ -72,7 +72,11 @@ impl HdWallet {
         Ok(Self { seed })
     }
 
-    /// Generate a fresh BIP39 mnemonic with the given word count (12, 15, 18, 21, or 24).
+    /// Generate a fresh 24-word BIP39 mnemonic.
+    ///
+    /// `word_count` must be 24 — the `bip32` backend only supports
+    /// 32-byte-entropy mnemonics, so any other BIP39-valid count is
+    /// rejected instead of silently minting 24 words.
     ///
     /// # Requirements
     /// REQ-HD-001, REQ-HD-100

@@ -27,9 +27,17 @@ impl MnemonicConfig {
 
 /// Generate a random BIP39 mnemonic phrase.
 ///
-/// **Note:** The underlying `bip32` crate currently only supports 24-word mnemonics.
+/// **Note:** The underlying `bip32` crate currently only supports 24-word
+/// mnemonics (32-byte entropy). A `word_count` other than 24 is rejected
+/// with [`WalletError::InvalidMnemonic`] instead of silently minting 24
+/// words — the requested count is a real knob, not a comment.
 pub fn generate_mnemonic(word_count: u8) -> Result<String, WalletError> {
     let _config = MnemonicConfig::new(word_count)?;
+    if word_count != 24 {
+        return Err(WalletError::InvalidMnemonic(format!(
+            "generation supports 24-word mnemonics only (bip32 entropy is fixed at 32 bytes), got {word_count}"
+        )));
+    }
     let mnemonic = Mnemonic::random(OsRng, Language::English);
     Ok(mnemonic.phrase().to_string())
 }
