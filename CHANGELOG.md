@@ -5,6 +5,46 @@ Changelog](https://keepachangelog.com/) — versions follow [semver](https://sem
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-05
+
+### Fixed
+- **Every BIP-39 phrase shorter than 24 words was rejected, so most recovery
+  phrases could not restore a wallet.** `mnemonic_to_seed` delegated to
+  `bip32 0.5.3`'s `bip39` feature, whose `Mnemonic::new` requires
+  `entropy.len() == KEY_SIZE + 1` with `KEY_SIZE = 32` — that is, exactly 33
+  bytes, that is, exactly 24 words. Anything shorter returned `Err(Bip39)`:
+  the two canonical 12-word vectors in the BIP-39 specification are both
+  refused, and so is any phrase from an 12/15/18/21-word generator or import.
+  Verified in this repo's own dependency graph: 24 words parses, 12 and 18 do
+  not.
+
+  Parsing now goes through `bip39` directly, which validates every published
+  vector correctly; `bip32` is retained for the BIP-32 derivation arithmetic
+  that follows, which never touched a phrase. The crate's tests previously
+  missed this because they only ever round-tripped phrases the crate itself
+  had generated — all of which were 24 words, because generation could only
+  make 24.
+
+  Consequence for callers: `mnemonic_to_seed` now accepts a standard phrase,
+  so a wallet restored from paper or a password manager works.
+
+- **Generation was 24 words only**, where BIP-39 permits 12, 15, 18, 21 and 24.
+  `generate_mnemonic` accepted those counts from `MnemonicConfig` and then
+  rejected them, and `0.2.1` hardened that rejection rather than the cause.
+  All five lengths are now generated, at exactly the requested length.
+
+### Added
+- Regression tests over the BIP-39 specification's own vectors, including the
+  seed value for vector 1 with the `TREZOR` passphrase, so the checksum and the
+  PBKDF2 derivation are both pinned against the specification rather than
+  against this crate.
+- A negative test that a phrase whose checksum does not match its entropy is
+  refused — with a note that `zoo ... wrong`, the obvious candidate, is in fact
+  a *valid* phrase (it decodes to `ff..ff` entropy), which is why it cannot be
+  used to test rejection.
+- The configuration matrix and property suites now assert that a requested
+  word count is honoured exactly, replacing assertions that it was ignored.
+
 ## [0.2.1] - 2026-09-12
 
 ### Fixed

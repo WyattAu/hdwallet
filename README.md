@@ -8,7 +8,8 @@ HD wallet for Rust — BIP32/39/44 derivation with multi-chain address generatio
 
 ## Features
 
-- **BIP39 mnemonics** — 24-word phrase generation and seed derivation
+- **BIP39 mnemonics** — 12/15/18/21/24-word phrase generation and seed
+  derivation, checked against the specification's own vectors
 - **BIP44 paths** — Per-coin derivation path support
 - **Multi-chain** — Bitcoin, Ethereum, Solana, Tron
 - **No unsafe** — Pure Rust with `#![forbid(unsafe_code)]`

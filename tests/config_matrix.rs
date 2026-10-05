@@ -18,7 +18,9 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, missing_docs)]
 
-use multi_chain_wallet::{Coin, HdWallet, MnemonicConfig, generate_mnemonic};
+use multi_chain_wallet::{
+    Coin, HdWallet, MnemonicConfig, generate_mnemonic, mnemonic::mnemonic_to_seed,
+};
 
 /// Backend parses 24-word phrases (fixed 32-byte entropy); this is the
 /// repo's own test phrase (see `tests/transaction_signing.rs`).
@@ -41,11 +43,40 @@ fn word_count_24_mints_24_words() {
 }
 
 #[test]
-fn word_count_non_24_is_rejected_instead_of_silently_minting_24() {
-    // BIP39-valid counts the backend cannot generate: must be Err, never
-    // a silent 24-word phrase.
-    for count in [12u8, 15, 18, 21] {
+fn every_bip39_word_count_is_supported_and_other_counts_fail_loudly() {
+    // BIP-39 permits 12, 15, 18, 21 and 24. This suite previously asserted the
+    // opposite — that only 24 worked — which is how a wallet whose recovery
+    // phrase could not be restored from a standard vector shipped with a green
+    // suite for so long.
+    for count in [12u8, 15, 18, 21, 24] {
         assert!(MnemonicConfig::new(count).is_ok());
+        let phrase = generate_mnemonic(count).expect("a BIP-39 word count");
+        assert_eq!(
+            phrase.split_whitespace().count(),
+            count as usize,
+            "generate({count}) mints {count} words, not a substitute"
+        );
+        assert!(
+            mnemonic_to_seed(&phrase, "").is_ok(),
+            "a generated {count}-word phrase round-trips"
+        );
+        assert_eq!(
+            HdWallet::generate(count)
+                .unwrap()
+                .split_whitespace()
+                .count(),
+            count as usize,
+            "HdWallet::generate({count}) agrees"
+        );
+    }
+
+    // Counts BIP-39 does not define stay an error rather than being rounded to
+    // the nearest valid length — the original concern this test encoded.
+    for count in [0u8, 1, 11, 13, 25, 30] {
+        assert!(
+            MnemonicConfig::new(count).is_err(),
+            "{count} is not a BIP-39 length"
+        );
         assert!(
             generate_mnemonic(count).is_err(),
             "generate({count}) must fail loudly, not mint 24 words"

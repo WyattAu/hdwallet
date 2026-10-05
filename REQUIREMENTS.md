@@ -8,7 +8,7 @@ comments on the implementing public item carry `REQ-HD-NNN` tags.
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| REQ-HD-001 | `HdWallet::generate(24)` produces a 24-word BIP39 English phrase; `MnemonicConfig::new` accepts only 12/15/18/21/24 | MUST |
+| REQ-HD-001 | `HdWallet::generate(n)` produces an `n`-word BIP39 English phrase for n in 12/15/18/21/24; `MnemonicConfig::new` accepts only those | MUST |
 | REQ-HD-002 | `from_mnemonic` converts a valid BIP39 phrase (+ optional passphrase) to a 64-byte BIP39 seed; an invalid phrase returns `Err(InvalidMnemonic)` | MUST |
 | REQ-HD-003 | Address derivation follows the documented BIP44/84 paths: BTC `m/84'/0'/a'/0/i` (bech32 `bc1q…`), ETH `m/44'/60'/0'/0/i` (0x + 40 hex), SOL `m/44'/501'/0'/0'`, TRON `m/44'/195'/0'/0/i` | MUST |
 | REQ-HD-004 | Derivation is deterministic: the same mnemonic + passphrase always yields the same addresses; different passphrases yield different seeds | MUST |

@@ -1,6 +1,6 @@
 [package]
 name = "multi-chain-wallet"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 rust-version = "1.85"
 description = "HD wallet for Rust — BIP32/39/44 derivation with multi-chain address generation (BTC, ETH, SOL, TRON)"
@@ -11,7 +11,8 @@ categories = ["cryptography"]
 exclude = ["/target"]
 
 [dependencies]
-bip32 = { version = "0.5", features = ["bip39"] }
+bip32 = "0.5"
+bip39 = { version = "2.2", features = ["rand"] }
 ed25519-dalek = "2.2"
 k256 = { version = "0.13", features = ["ecdsa", "arithmetic"] }
 sha2 = "0.10"
@@ -36,3 +37,4 @@ panic = "deny"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
+

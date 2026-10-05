@@ -13,24 +13,35 @@ use proptest::prelude::*;
 
 use multi_chain_wallet::{Coin, HdWallet};
 
-/// The bip32 crate always generates 24-word mnemonics regardless of word_count.
-const VALID_WORD_COUNT: u8 = 24;
+/// The word counts BIP-39 defines.
+const VALID_WORD_COUNTS: [u8; 5] = [12, 15, 18, 21, 24];
+const WORD_24: u8 = 24;
+
+fn is_bip39_word_count(count: u8) -> bool {
+    VALID_WORD_COUNTS.contains(&count)
+}
 
 #[test]
-fn generate_mnemonic_always_24_words() {
-    proptest!(|(word_count in 12u8..=24u8)| {
-        // generate_mnemonic always produces 24 words (bip32 limitation)
+fn a_generated_phrase_has_exactly_the_requested_word_count() {
+    // The property this suite used to assert the *absence* of: that any count
+    // quietly became 24 words. A request is a request — a caller asking for 12
+    // words gets 12, and a length BIP-39 does not define is refused.
+    proptest!(|(word_count in 8u8..=28u8)| {
         let result = HdWallet::generate(word_count);
-        if let Ok(phrase) = result {
-            let words: Vec<&str> = phrase.split_whitespace().collect();
-            prop_assert_eq!(words.len(), VALID_WORD_COUNT as usize);
+        match result {
+            Ok(phrase) => {
+                let words: Vec<&str> = phrase.split_whitespace().collect();
+                prop_assert_eq!(words.len(), word_count as usize);
+                prop_assert!(is_bip39_word_count(words.len() as u8));
+            }
+            Err(_) => prop_assert!(!is_bip39_word_count(word_count)),
         }
     });
 }
 
 #[test]
 fn mnemonic_words_are_alphanumeric() {
-    let phrase = HdWallet::generate(VALID_WORD_COUNT).unwrap();
+    let phrase = HdWallet::generate(WORD_24).unwrap();
     for word in phrase.split_whitespace() {
         assert!(word.chars().all(|c| c.is_ascii_lowercase()));
         assert!(word.len() >= 3);
@@ -39,7 +50,7 @@ fn mnemonic_words_are_alphanumeric() {
 
 #[test]
 fn deterministic_derivation_from_mnemonic() {
-    let phrase = HdWallet::generate(VALID_WORD_COUNT).unwrap();
+    let phrase = HdWallet::generate(WORD_24).unwrap();
     let wallet1 = HdWallet::from_mnemonic(&phrase, "").unwrap();
     let wallet2 = HdWallet::from_mnemonic(&phrase, "").unwrap();
 
@@ -55,7 +66,7 @@ fn deterministic_derivation_from_mnemonic() {
 
 #[test]
 fn btc_address_starts_with_bc1q() {
-    let phrase = HdWallet::generate(VALID_WORD_COUNT).unwrap();
+    let phrase = HdWallet::generate(WORD_24).unwrap();
     let wallet = HdWallet::from_mnemonic(&phrase, "").unwrap();
     let addr = wallet.derive_address(Coin::Bitcoin).unwrap();
     assert!(addr.starts_with("bc1q"));
@@ -63,7 +74,7 @@ fn btc_address_starts_with_bc1q() {
 
 #[test]
 fn eth_address_format() {
-    let phrase = HdWallet::generate(VALID_WORD_COUNT).unwrap();
+    let phrase = HdWallet::generate(WORD_24).unwrap();
     let wallet = HdWallet::from_mnemonic(&phrase, "").unwrap();
     let addr = wallet.derive_address(Coin::Ethereum).unwrap();
     assert!(addr.starts_with("0x"));
@@ -72,7 +83,7 @@ fn eth_address_format() {
 
 #[test]
 fn different_passphrases_different_seeds() {
-    let phrase = HdWallet::generate(VALID_WORD_COUNT).unwrap();
+    let phrase = HdWallet::generate(WORD_24).unwrap();
     let wallet1 = HdWallet::from_mnemonic(&phrase, "").unwrap();
     let wallet2 = HdWallet::from_mnemonic(&phrase, "salt").unwrap();
     assert_ne!(wallet1.seed(), wallet2.seed());
@@ -84,7 +95,7 @@ fn different_indices_different_addresses() {
         index1 in 0u32..100u32,
         index2 in 100u32..200u32,
     )| {
-        let phrase = HdWallet::generate(VALID_WORD_COUNT).unwrap();
+        let phrase = HdWallet::generate(WORD_24).unwrap();
         let wallet = HdWallet::from_mnemonic(&phrase, "").unwrap();
         let addr1 = wallet.derive_address_at(Coin::Ethereum, 0, index1).unwrap();
         let addr2 = wallet.derive_address_at(Coin::Ethereum, 0, index2).unwrap();
