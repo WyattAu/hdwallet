@@ -91,9 +91,9 @@ fn derive_btc_xprv(seed: &[u8; 64], account: u32, index: u32) -> Result<XPrv, Wa
     let path = path_str
         .parse::<bip32::DerivationPath>()
         .map_err(|e| WalletError::DerivationFailed(e.to_string()))?;
-    let seed_obj = bip32::Seed::new(*seed);
-    XPrv::derive_from_path(&seed_obj, &path)
-        .map_err(|e| WalletError::DerivationFailed(e.to_string()))
+    // bip32 0.6 borrows the seed as plain bytes; 0.5 wanted a `bip32::Seed`
+    // wrapper that only existed to serve the mnemonic path it no longer has.
+    XPrv::derive_from_path(seed, &path).map_err(|e| WalletError::DerivationFailed(e.to_string()))
 }
 
 /// Derive a P2WPKH (bech32 segwit v0) Bitcoin address from the seed.
@@ -108,7 +108,7 @@ pub fn derive_btc_address(
 
     let xpub = xprv.public_key();
     let verifying_key = xpub.public_key();
-    let compressed = verifying_key.to_encoded_point(true);
+    let compressed = verifying_key.to_sec1_point(true);
     pubkey_to_bech32(compressed.as_bytes(), "bc")
 }
 
@@ -137,16 +137,11 @@ pub fn sign_btc(
     msg_hash: &[u8; 32],
 ) -> Result<Secp256k1Signature, WalletError> {
     let signing_key = derive_btc_signing_key(seed, account, index)?;
-    let (signature, recid) = signing_key
-        .sign_prehash_recoverable(msg_hash)
+    let (signature, recid) = crate::signing_prehash::sign_prehash(&signing_key, msg_hash, &[])
         .map_err(|e| WalletError::SigningFailed(e.to_string()))?;
 
-    let sig_bytes = signature.to_bytes();
-    let mut r = [0u8; 32];
-    let mut s = [0u8; 32];
-    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
-    r.copy_from_slice(r_bytes);
-    s.copy_from_slice(s_bytes);
+    let (r, s) = crate::signing_prehash::split_signature(&signature)
+        .ok_or_else(|| WalletError::SigningFailed("signature is not 64 bytes".to_string()))?;
 
     Ok(Secp256k1Signature {
         r,
@@ -198,7 +193,7 @@ mod tests {
         let wallet = crate::HdWallet::from_mnemonic(&phrase, "").unwrap();
         let signing_key = derive_btc_signing_key(wallet.seed(), 0, 0).unwrap();
         let verifying_key = signing_key.verifying_key();
-        assert!(!verifying_key.to_encoded_point(false).as_bytes().is_empty());
+        assert!(!verifying_key.to_sec1_point(false).as_bytes().is_empty());
     }
 
     #[test]

@@ -5,6 +5,57 @@ Changelog](https://keepachangelog.com/) — versions follow [semver](https://sem
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-05
+
+Upgraded to `bip32 0.6` and `k256 0.14`, and added the BIP-32 conformance
+suite that made the upgrade safe to attempt.
+
+### Changed (breaking)
+
+- **`bip32` 0.5 → 0.6.** Upstream 0.6.0 *removed* the `bip39` and `mnemonic`
+  features rather than fixing them, so the standalone-`bip39` arrangement
+  `0.2.2` introduced is now the only one available. `derive_from_path` borrows
+  the seed as plain bytes instead of taking a `bip32::Seed`.
+  **Derived addresses are unchanged**: all four of BIP-32's own derivation
+  vectors now match the specification byte for byte under 0.6, and the crate's
+  pre-existing address tests pass untouched.
+- **`k256` 0.13 → 0.14**, which moves `to_encoded_point` to `to_sec1_point` and
+  drops `SigningKey::sign_prehash_recoverable`.
+
+### Added
+
+- **The BIP-32 test vectors, verbatim from `bip-0032.mediawiki`** (vectors 1-5).
+  A wallet that derives *consistently wrong* addresses round-trips perfectly, so
+  round-trip tests prove nothing; only published vectors do. Vector 3 exercises
+  the leading-zero handling where vectors 1 and 2 are silent.
+- **Strict extended-key import — `parse_xprv` / `parse_xpub`.** Measured against
+  `bip32 0.6.0`, that crate refuses twelve of vector 5's sixteen invalid keys and
+  **accepts four**: both "zero depth with non-zero parent fingerprint" keys and
+  both "zero depth with non-zero index" keys. Those are the depth-0 consistency
+  rules — a master key has no parent and no index — so accepting them means the
+  same private material has two valid encodings. That is malleability, and
+  malleability is what breaks a backup check and any comparison of serialised
+  keys. This crate now enforces all sixteen, plus BIP-32's rule that a public key
+  may not name a hardened child, plus canonical re-serialisation.
+  It also gives the crate an import path it never had: `bip32 0.5` had no
+  `FromStr` at all, so a user's existing xpub could not be validated at all.
+- `signing_prehash` — recoverable signing over a **prehash**, deterministic per
+  RFC 6979. `k256 0.14`'s replacement for the removed method,
+  `sign_digest_recoverable`, *hashes* its input; a wallet is handed a digest that
+  is already hashed, so using it would sign a different message than the network
+  verifies and every transaction would be rejected. Nothing would panic, and any
+  test that signed a message by hashing it first would still pass. There is a
+  regression test asserting the two paths differ.
+- `split_signature`, returning `Option` rather than silently yielding zeroes if
+  the serialised form is ever not 64 bytes.
+
+### Fixed
+
+- The property suite asserted that a requested word count is *ignored*; it now
+  asserts it is honoured exactly. It previously encoded the 24-word limitation
+  as intended behaviour, which is how a wallet shipped that could not restore a
+  12-word recovery phrase with a fully green suite.
+
 ## [0.2.2] - 2026-10-05
 
 ### Fixed

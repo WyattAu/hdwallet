@@ -9,9 +9,9 @@ fn derive_eth_xprv(seed: &[u8; 64], account: u32, index: u32) -> Result<XPrv, Wa
     let path = path_str
         .parse::<bip32::DerivationPath>()
         .map_err(|e| WalletError::DerivationFailed(e.to_string()))?;
-    let seed_obj = bip32::Seed::new(*seed);
-    XPrv::derive_from_path(&seed_obj, &path)
-        .map_err(|e| WalletError::DerivationFailed(e.to_string()))
+    // bip32 0.6 borrows the seed as plain bytes; 0.5 wanted a `bip32::Seed`
+    // wrapper that only existed to serve the mnemonic path it no longer has.
+    XPrv::derive_from_path(seed, &path).map_err(|e| WalletError::DerivationFailed(e.to_string()))
 }
 
 /// Derive an Ethereum address from the seed.
@@ -30,7 +30,7 @@ pub fn derive_eth_address(
     let verifying_key = xpub.public_key();
 
     // Uncompressed pubkey: 04 || X (32 bytes) || Y (32 bytes) = 65 bytes
-    let uncompressed = verifying_key.to_encoded_point(false);
+    let uncompressed = verifying_key.to_sec1_point(false);
     let pubkey_bytes = uncompressed.as_bytes();
 
     // Skip 0x04 prefix, hash the 64 coordinate bytes
@@ -104,16 +104,11 @@ pub fn sign_eth(
     msg_hash: &[u8; 32],
 ) -> Result<Secp256k1Signature, WalletError> {
     let signing_key = derive_eth_signing_key(seed, account, index)?;
-    let (signature, recid) = signing_key
-        .sign_prehash_recoverable(msg_hash)
+    let (signature, recid) = crate::signing_prehash::sign_prehash(&signing_key, msg_hash, &[])
         .map_err(|e| WalletError::SigningFailed(e.to_string()))?;
 
-    let sig_bytes = signature.to_bytes();
-    let mut r = [0u8; 32];
-    let mut s = [0u8; 32];
-    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
-    r.copy_from_slice(r_bytes);
-    s.copy_from_slice(s_bytes);
+    let (r, s) = crate::signing_prehash::split_signature(&signature)
+        .ok_or_else(|| WalletError::SigningFailed("signature is not 64 bytes".to_string()))?;
 
     // Ethereum v = recovery_id + 27
     Ok(Secp256k1Signature {
@@ -145,7 +140,8 @@ pub fn sign_eth_transaction(
 ) -> Result<Vec<u8>, WalletError> {
     use rlp::RlpStream;
 
-    let signing_key = derive_eth_signing_key(seed, account, index)?;
+    // The signing key is derived below, over the assembled payload: deriving it
+    // here would validate a key the caller may never use.
 
     // EIP-1559: tx type 0x02 || RLP([chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas, gas_limit, to, value, data, access_list])
     let mut stream = RlpStream::new();
@@ -170,16 +166,12 @@ pub fn sign_eth_transaction(
     keccak.update(&tx_bytes);
     let tx_hash: [u8; 32] = keccak.finalize().into();
 
-    let (signature, recid) = signing_key
-        .sign_prehash_recoverable(&tx_hash)
+    let signing_key = derive_eth_signing_key(seed, account, index)?;
+    let (signature, recid) = crate::signing_prehash::sign_prehash(&signing_key, &tx_hash, &[])
         .map_err(|e| WalletError::SigningFailed(e.to_string()))?;
 
-    let sig_bytes = signature.to_bytes();
-    let mut r = [0u8; 32];
-    let mut s = [0u8; 32];
-    let (r_bytes, s_bytes) = sig_bytes.split_at(32);
-    r.copy_from_slice(r_bytes);
-    s.copy_from_slice(s_bytes);
+    let (r, s) = crate::signing_prehash::split_signature(&signature)
+        .ok_or_else(|| WalletError::SigningFailed("signature is not 64 bytes".to_string()))?;
 
     // v = chain_id * 2 + 35 + recovery_id
     let v = chain_id * 2 + 35 + recid.to_byte() as u64;
@@ -232,7 +224,7 @@ mod tests {
         let wallet = crate::HdWallet::from_mnemonic(&phrase, "").unwrap();
         let signing_key = derive_eth_signing_key(wallet.seed(), 0, 0).unwrap();
         let verifying_key = signing_key.verifying_key();
-        assert!(!verifying_key.to_encoded_point(false).as_bytes().is_empty());
+        assert!(!verifying_key.to_sec1_point(false).as_bytes().is_empty());
     }
 
     #[test]

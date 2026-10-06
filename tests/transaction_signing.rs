@@ -127,7 +127,7 @@ fn sign_eth_transaction_produces_recoverable_eip1559_tx() {
     sig64[32..].copy_from_slice(s_bytes);
     let sig = k256::ecdsa::Signature::from_slice(&sig64).unwrap();
     let recovered = k256::ecdsa::VerifyingKey::recover_from_prehash(&tx_hash, &sig, recid).unwrap();
-    let recovered_addr = eth_address_from_pubkey(recovered.to_encoded_point(false).as_bytes());
+    let recovered_addr = eth_address_from_pubkey(recovered.to_sec1_point(false).as_bytes());
     let expected_addr = eth::derive_eth_address(seed, account, index).unwrap();
     assert_eq!(
         recovered_addr, expected_addr,
@@ -271,8 +271,8 @@ fn sign_tron_transaction_output_is_hash_plus_recoverable_signature() {
     let signing_key = tron::derive_tron_signing_key(seed, account, index).unwrap();
     let expected_pk = k256::ecdsa::VerifyingKey::from(&signing_key);
     assert_eq!(
-        recovered.to_encoded_point(true).as_bytes(),
-        expected_pk.to_encoded_point(true).as_bytes(),
+        recovered.to_sec1_point(true).as_bytes(),
+        expected_pk.to_sec1_point(true).as_bytes(),
         "recovered pubkey must equal the derived TRON key"
     );
 }

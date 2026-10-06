@@ -1,6 +1,6 @@
 [package]
 name = "multi-chain-wallet"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.85"
 description = "HD wallet for Rust — BIP32/39/44 derivation with multi-chain address generation (BTC, ETH, SOL, TRON)"
@@ -11,10 +11,15 @@ categories = ["cryptography"]
 exclude = ["/target"]
 
 [dependencies]
-bip32 = "0.5"
+bip32 = { version = "0.6", features = ["alloc"] }
 bip39 = { version = "2.2", features = ["rand"] }
 ed25519-dalek = "2.2"
-k256 = { version = "0.13", features = ["ecdsa", "arithmetic"] }
+k256 = { version = "0.14", features = ["ecdsa", "arithmetic"] }
+# Pinned to the same `ecdsa` that k256 0.14 uses internally, for recoverable
+# signing over a *prehash*: a wallet signs a transaction hash that is already
+# computed, and `sign_digest_recoverable` would hash it a second time.
+ecdsa = "0.17"
+sha2_11 = { package = "sha2", version = "0.11" }
 sha2 = "0.10"
 sha3 = "0.10"
 ripemd = "0.1"

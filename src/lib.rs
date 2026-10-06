@@ -4,18 +4,24 @@
 #![deny(missing_docs)]
 //! Multi-chain HD wallet — BIP32/39/44 derivation with BTC, ETH, SOL, TRON address generation.
 
+/// BIP-32 test vectors, verbatim from the specification.
+pub mod bip32_vectors;
 /// Bitcoin address derivation and signing.
 pub mod btc;
-/// BIP44 derivation path support.
+/// BIP-44 derivation path constants.
 pub mod derivation;
 /// Error types.
 pub mod error;
 /// Ethereum address derivation and signing.
 pub mod eth;
+/// Strict import of an existing extended key.
+pub mod extended_key;
 /// BIP39 mnemonic support.
 pub mod mnemonic;
 /// Signature and key types.
 pub mod signing;
+/// Recoverable signing over a prehash.
+pub mod signing_prehash;
 /// Solana address derivation and signing.
 pub mod sol;
 /// Tron address derivation and signing.
