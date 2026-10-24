@@ -1,4 +1,5 @@
 # multi-chain-wallet
+[![Estate integration](https://github.com/WyattAu/estate-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/WyattAu/estate-integration/actions/workflows/ci.yml)
 
 [![docs.rs](https://docs.rs/multi-chain-wallet/badge.svg)](https://docs.rs/multi-chain-wallet)
 [![crates.io](https://img.shields.io/crates/v/multi-chain-wallet.svg)](https://crates.io/crates/multi-chain-wallet)
